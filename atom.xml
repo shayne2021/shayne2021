@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Shayne的博客</title>
+  <icon>https://www.gravatar.com/avatar/0fa0a5f515a2f79b82a8d023631ecfe4</icon>
+  <subtitle>学海无涯，大道至简</subtitle>
+  <link href="http://www.shayne.com.cn/atom.xml" rel="self"/>
+  
+  <link href="http://www.shayne.com.cn/"/>
+  <updated>2021-02-04T08:12:44.535Z</updated>
+  <id>http://www.shayne.com.cn/</id>
+  
+  <author>
+    <name>Shayne</name>
+    <email>sunyao52100@163.com</email>
+  </author>
+  
+  <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Minor GC vs Major GC vs Full GC</title>
+    <link href="http://www.shayne.com.cn/2021/02/04/Minor%20GC%20vs%20Major%20GC%20vs%20Full%20GC/"/>
+    <id>http://www.shayne.com.cn/2021/02/04/Minor%20GC%20vs%20Major%20GC%20vs%20Full%20GC/</id>
+    <published>2021-02-04T08:12:58.000Z</published>
+    <updated>2021-02-04T08:12:44.535Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="Minor-GC-vs-Major-GC-vs-Full-GC"><a href="#Minor-GC-vs-Major-GC-vs-Full-GC" class="headerlink" title="Minor GC vs Major GC vs Full GC"></a>Minor GC vs Major GC vs Full GC</h2><p>学习《深入理解Java虚拟机》，了解Heap一般划分为新生代和老年代（Tenured），垃圾回就收发生在这两块区域。</p><img src="/img/垃圾回收器.png" alt="垃圾回收器组合" style="zoom:100%;" /><h6 id="MinorGC"><a href="#MinorGC" class="headerlink" title="MinorGC"></a><u>MinorGC</u></h6><p>发生在新生代区域的垃圾回收，称之为MinorGC，有以下注意点：</p><p><code>[app1@XXXXX ~]$ java -XX:+PrintCommandLineFlags -version</code><br><code>-XX:InitialHeapSize=260267584 -XX:MaxHeapSize=4164281344 -XX:+PrintCommandLineFlags -XX:+UseCompressedClassPointers -XX:+UseCompressedOops -XX:+UseParallelGC</code><br><code>java version &quot;1.8.0_201&quot;</code><br><code>Java(TM) SE Runtime Environment (build 1.8.0_201-b09)</code><br><code>Java HotSpot(TM) 64-Bit Server VM (build 25.201-b09, mixed mode)</code></p><p><code>[</code>app1@XXXXX ~]$ java -XX:+PrintGCDetails -version<code> </code>java version “1.8.0_201”<code> </code>Java(TM) SE Runtime Environment (build 1.8.0_201-b09)<code> </code>Java HotSpot(TM) 64-Bit Server VM (build 25.201-b09, mixed mode)<code> </code>Heap<code>  </code>PSYoungGen      total 74752K, used 2580K [0x000000076d400000, 0x0000000772700000, 0x00000007c0000000)<code>   </code>eden space 64512K, 4% used [0x000000076d400000,0x000000076d685368,0x0000000771300000)<code>   </code>from space 10240K, 0% used [0x0000000771d00000,0x0000000771d00000,0x0000000772700000)<code>   </code>to   space 10240K, 0% used [0x0000000771300000,0x0000000771300000,0x0000000771d00000)<code>  </code>ParOldGen       total 171008K, used 0K [0x00000006c7c00000, 0x00000006d2300000, 0x000000076d400000)<code>   </code>object space 171008K, 0% used [0x00000006c7c00000,0x00000006c7c00000,0x00000006d2300000)<code>  </code>Metaspace       used 2207K, capacity 4480K, committed 4480K, reserved 1056768K<code>   class space    used 240K, capacity 384K, committed 384K, reserved 1048576K</code></p><p>JAVA1.8版本，虚拟机垃圾回收器参数使用+UseParallelGC，PSYoungGen/ParOldGen，与+UseParallelOldGC参数结果相同，老的一些书籍上存在一些问题。</p><p>1、只要JVM无法为新对象分配空间时，MinorGC必定会发生，例如，Eden区域满。</p><p>2、以JAVA1.8垃圾回收器PSYoungGen/ParOldGen为例，新生代Parallel Scavenge回收，采用复制算法，新生代（Eden、Survivor）存活内容整体复制，不存在碎片。(新生代，对象生命周期短，适合复制算法，拷贝的对象较少)</p><p>3、-XX:MaxTenuringThreshold，晋升老年代的对象年龄，对象在每一次Minor GC后年龄增加一岁，超过这个值后进入到老年代。</p><p>4、所有次要GC都会触发stop-the-world暂停，从而停止应用程序线程。对于大多数应用程序，暂停的长度可以忽略不计。如果Eden中的大多数对象都被认为是垃圾，并且从未被复制到Survivor，那么这是正确的。如果情况正好相反，并且大多数新生对象都不符合GC的条件，那么较小的GC暂停将花费相当多的时间。</p><h6 id="Major-GC-vs-Full-GC"><a href="#Major-GC-vs-Full-GC" class="headerlink" title="Major GC vs Full GC"></a><u>Major GC vs Full GC</u></h6><p>Major GC回收老年代；FullGC会有整个Heap，包含新生代和老年代；</p><ul><li>S0C：第一个幸存区的大小</li><li>S1C：第二个幸存区的大小</li><li>S0U：第一个幸存区的使用大小</li><li>S1U：第二个幸存区的使用大小</li><li>EC：伊甸园区的大小</li><li>EU：伊甸园区的使用大小</li><li>OC：老年代大小</li><li>OU：老年代使用大小</li><li>MC：方法区大小</li><li>MU：方法区使用大小</li><li>CCSC:压缩类空间大小</li><li>CCSU:压缩类空间使用大小</li><li>YGC：年轻代垃圾回收次数</li><li>YGCT：年轻代垃圾回收消耗时间</li><li>FGC：老年代垃圾回收次数</li><li>FGCT：老年代垃圾回收消耗时间</li><li>GCT：垃圾回收消耗总时间</li></ul><p><code>[app1@XXXXXX ~]$ jstat -gc 16168 5000</code><br> <code>S0C    S1C    S0U    S1U      EC       EU        OC         OU       MC     MU    CCSC   CCSU   YGC     YGCT    FGC    FGCT     GCT    512.0  512.0  128.0   0.0   27648.0  16447.0   64000.0    62804.4   44416.0 43766.6 5248.0 5076.1  19372   93.324   2      0.078   93.402</code><br><code>512.0  512.0  128.0   0.0   27648.0  16447.0   64000.0    62804.4   44416.0 43766.6 5248.0 5076.1  19372   93.324   2      0.078   93.402</code><br><code>512.0  512.0  128.0   0.0   27648.0  16447.0   64000.0    62804.4   44416.0 43766.6 5248.0 5076.1  19372   93.324   2      0.078   93.402</code><br><code>512.0  512.0  128.0   0.0   27648.0  16447.0   64000.0    62804.4   44416.0 43766.6 5248.0 5076.1  19372   93.324   2      0.078   93.402</code><br><code>512.0  512.0  128.0   0.0   27648.0  16447.0   64000.0    62804.4   44416.0 43766.6 5248.0 5076.1  19372   93.324   2      0.078   93.402</code><br><code>512.0  512.0  128.0   0.0   27648.0  16447.0   64000.0    62804.4   44416.0 43766.6 5248.0 5076.1  19372   93.324   2      0.078   93.402</code><br><code>512.0  512.0  128.0   0.0   27648.0  16447.0   64000.0    62804.4   44416.0 43766.6 5248.0 5076.1  19372   93.324   2      0.078   93.402</code><br><code>512.0  512.0  128.0   0.0   27648.0  16447.0   64000.0    62804.4   44416.0 43766.6 5248.0 5076.1  19372   93.324   2      0.078   93.402</code><br><code>512.0  512.0  128.0   0.0   27648.0  16664.7   64000.0    62804.4   44416.0 43766.6 5248.0 5076.1  19372   93.324   2      0.078   93.402</code></p><p>不用太在意，Minor GC、Major GC、FullGC，关注GC情况，花费的时间，上述可见，GC花费93402ms，Minor GC 19372次，总计93324ms，平均4.8ms，FullGC 2次，总计78ms，平均39ms，吞吐量，GC时间/程序运行时间，这里不在计算。</p><h6 id="总结"><a href="#总结" class="headerlink" title="总结"></a><u>总结</u></h6><p>Minor GC 收集新生代，Major GC 收集老年代，FullGC 都收集，GC都会触发stop-the-world，多多关注GC情况，jstat -gc pid t(ms)，发生次数，耗时，以及吞吐量等。</p><p>参考文章<a href="https://plumbr.io/blog/garbage-collection/minor-gc-vs-major-gc-vs-full-gc">https://plumbr.io/blog/garbage-collection/minor-gc-vs-major-gc-vs-full-gc</a></p>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;h2 id=&quot;Minor-GC-vs-Major-GC-vs-Full-GC&quot;&gt;&lt;a href=&quot;#Minor-GC-vs-Major-GC-vs-Full-GC&quot; class=&quot;headerlink&quot; title=&quot;Minor GC vs Major GC vs Full G</summary>
+      
+    
+    
+    
+    <category term="java" scheme="http://www.shayne.com.cn/categories/java/"/>
+    
+    
+    <category term="java" scheme="http://www.shayne.com.cn/tags/java/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>test</title>
+    <link href="http://www.shayne.com.cn/2021/02/03/test/"/>
+    <id>http://www.shayne.com.cn/2021/02/03/test/</id>
+    <published>2021-02-03T00:59:58.000Z</published>
+    <updated>2021-02-03T01:01:45.645Z</updated>
+    
+    <content type="html"><![CDATA[<p>Welcome to shayne’s blog!</p>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;p&gt;Welcome to shayne’s blog!&lt;/p&gt;
+</summary>
+      
+    
+    
+    
+    
+  </entry>
+  
+  <entry>
+    <title>Hello World</title>
+    <link href="http://www.shayne.com.cn/2021/01/31/hello-world/"/>
+    <id>http://www.shayne.com.cn/2021/01/31/hello-world/</id>
+    <published>2021-01-31T09:47:54.790Z</published>
+    <updated>2021-01-31T09:47:54.790Z</updated>
+    
+    <content type="html"><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p><h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p><h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p><h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p><h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;p&gt;Welcome to &lt;a href=&quot;https://hexo.io/&quot;&gt;Hexo&lt;/a&gt;! This is your very first post. Check &lt;a href=&quot;https://hexo.io/docs/&quot;&gt;documentation&lt;/a&gt; for</summary>
+      
+    
+    
+    
+    
+  </entry>
+  
+</feed>
